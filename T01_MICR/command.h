@@ -21,9 +21,7 @@
 #include <string>
 #include <algorithm>
 
-//#include "string_funcitons.h"
 #include "matcher.h"
-//#include "text_colors.h"
 
 enum error_code
 {
@@ -35,6 +33,8 @@ enum error_code
   ERR_FILE_DIR_EXIST  // file or directory does not exist
 };
 
+#define RESET "\033[0m" 
+#define GREEN "\033[32m"
 
 /* Enumeration for internal commands */
 enum command_type
@@ -262,8 +262,7 @@ public:
     else
       intro_line += "> ";
     
-    /* os << BOLDCYAN << intro_line << RESET; */
-    os << intro_line;
+    os << "\033[32m" << intro_line << "\033[0m";
 
     return SUCCESS;
   }
