@@ -107,7 +107,7 @@ public:
       if (output_point != command_parts.end())
         output_file_name = *(output_point + 1);
     }
-    else
+    else 
       command_name = command_parts;
     
     if (!command_parts.empty())
@@ -126,7 +126,6 @@ public:
     else if (cmd_name == "time"){
       return CMD_TIME;
     }
-      
     else if (cmd_name == "set")
       return CMD_SET;
     else
@@ -135,7 +134,6 @@ public:
 
   //Regular expression expansion functions
   //It's a TRYAP.
-
   static bool is_expansion_needed(const std::string &text){
     if (text.find('*') != std::string::npos || text.find('?') != std::string::npos)
       return true;
@@ -144,7 +142,7 @@ public:
   }
 
   error_code expand_command_path_params(void){
-    for (int i = 0; i < command_name.size(); i++){
+    for (size_t i = 0; i < command_name.size(); i++){
       if (!is_expansion_needed(command_name[i]))
         continue;
       
@@ -281,7 +279,11 @@ public:
       case CMD_SET:
         return exec_set();
       case CMD_OUT:
-        io_redirect();
+        if (io_redirect() != SUCCESS){
+          //std::cerr << "command.h:283\n";
+          return FAILURE;
+        }
+          
         exec_bash_command(command_name);
         break;
       case CMD_TIME:
@@ -294,6 +296,8 @@ public:
 
   error_code io_redirect(void){
     int fd_in = -1, fd_out = -1;
+    
+    //std::cerr << "I am in io_redirect\n\n";
 
     if (!output_file_name.empty()){
       fd_out = open(output_file_name.c_str(), O_WRONLY | O_TRUNC | O_CREAT, S_IWRITE | S_IREAD);
@@ -307,6 +311,7 @@ public:
 
     if (!input_file_name.empty()){
       fd_in = open(input_file_name.c_str(), O_RDONLY);
+      //std::cerr << "308:Could not open file\n\n";
 
       if (fd_in == -1){
         std::cerr << "Could not open file\n\n";

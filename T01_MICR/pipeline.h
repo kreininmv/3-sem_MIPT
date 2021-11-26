@@ -31,11 +31,14 @@ public:
     std::vector<std::string> splitted_cmd_line;
     split_string_by_token(command_line, '|', splitted_cmd_line);
     
+    //std::cerr << "pipeline.h: 34\n\n";
     if (check_cmd_line_IO_pattern(command_line, splitted_cmd_line) != SUCCESS){
       std::cerr << "Wrong input format\n";
+      //std::cerr << "pipeline.h: 37\n\n";
       return ERR_WRONG_INPUT;
     }
     
+    //std::cerr << "pipeline.h: 41\n\n";
     for (auto &curr_cmd_base : splitted_cmd_line){
       error_code err_code = SUCCESS;
       command_queue.emplace_back(curr_cmd_base, err_code);
@@ -46,23 +49,28 @@ public:
       }
     }
     
+    //std::cerr << "pipeline.h: 50\n\n";
     return SUCCESS;
   }
 
   error_code check_cmd_line_IO_pattern(const std::string &command_line, const std::vector<std::string> &splitted_command_line) {
+    //std::cerr << "pipeline.h: 57\n\n";
     if (command_line.empty())
       return SUCCESS;
       
-    auto 
-      input_points_num            = std::count(command_line.begin(), command_line.end(), '<'),
-      output_points_num           = std::count(command_line.begin(), command_line.end(), '>'),
-      input_points_num_in_front   = std::count(splitted_command_line.front().begin(), splitted_command_line.front().end(), '<'),
-      output_points_num_in_back   = std::count(splitted_command_line.back().begin(), splitted_command_line.front().end(), '>');
+    //std::cerr << "pipeline.h: 61\n\n";
+    auto
+      input_points_num  = std::count(command_line.begin(), command_line.end(), '<'),
+      output_points_num = std::count(command_line.begin(), command_line.end(), '>'),
+      input_points_num_in_front = std::count(splitted_command_line.front().begin(), splitted_command_line.front().end(), '<'),
+      output_points_num_in_back = std::count(splitted_command_line.back().begin() , splitted_command_line.back().end() , '>');
     
+    //std::cerr << "pipeline.h: 68\n\n";
     if (!(input_points_num  == input_points_num_in_front && input_points_num <= 1 &&
           output_points_num == output_points_num_in_back && output_points_num <= 1))
       return FAILURE;
-      
+    
+    //std::cerr << "pipeline.h: 73\n\n";
     return SUCCESS;
   }
 
@@ -76,7 +84,6 @@ public:
     
     if (command_queue.front().cmd_type == CMD_TIME)
       return exec_with_time();
-      
     
     auto &front_cmd = command_queue.front();
     
@@ -93,18 +100,20 @@ public:
     }
     
     //connect created pipes so as they constitute pipeline, create childprocess and execute command in this child process
-    for (int i = 0; i < command_queue.size(); i++){
+    for (size_t i = 0; i < command_queue.size(); i++){
       pid_t pid = fork();
 
       if (pid == 0){
         // no pipeline is required, that is why no pipes were create. just exec one cmd
         if (command_queue.size() == 1 ){
-          command_queue.front().exec();
+          if (command_queue[i].exec() != SUCCESS)
+            return FAILURE;
         }
         else if (i == 0){  
           dup2(pipe_array[i][WRITE_END], STDOUT_FILENO);
           close(pipe_array[i][READ_END]);
-          command_queue[i].exec();  
+          if (command_queue[i].exec() != SUCCESS)
+            return FAILURE;
         }
         else if (i > 0 && i < (command_queue.size() - 1)){
           dup2(pipe_array[i-1][READ_END], STDIN_FILENO);
@@ -112,12 +121,14 @@ public:
           
           close(pipe_array[i-1][WRITE_END]);
           close(pipe_array[i][READ_END]);
-          command_queue[i].exec();
+          if (command_queue[i].exec() != SUCCESS)
+            return FAILURE;
         }
         else {
           dup2(pipe_array[i-1][READ_END], STDIN_FILENO);
           close(pipe_array[i-1][WRITE_END]);
-          command_queue[i].exec();
+          if (command_queue[i].exec() != SUCCESS)
+            return FAILURE;
         }
       }
       //pid != 0
@@ -128,7 +139,7 @@ public:
             close(pipe[WRITE_END]);
           }
 
-          for (int j = 0; j < command_queue.size(); j++)
+          for (size_t j = 0; j < command_queue.size(); j++)
             wait(nullptr);
         }
       }
