@@ -1,2 +1,0 @@
-all:
-	 g++ -o output t01_micr.cpp micr.h micr.cpp pipeline.h pipeline.cpp command.h command.cpp matcher.h
