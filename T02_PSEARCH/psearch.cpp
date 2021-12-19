@@ -1,7 +1,5 @@
 #include "psearch.h"
 
-
-
 int psearch::make_queue(const std::string& current_path){
   
   //std::cout << "Current path: " << current_path << std::endl;
@@ -16,38 +14,28 @@ int psearch::make_queue(const std::string& current_path){
     switch(rd->d_type){
       case DT_REG:
         file_names.emplace_back(std::string(rd->d_name));
-        //new_path = current_path + "/" + rd->d_name;
-        //std::cout << "File(1): " << path << std::endl;
+
         if (path[path.size() - 1] == '/')
           new_path = current_path + rd->d_name;
         else  
           new_path = current_path + "/" + rd->d_name;
         
-        //std::cout << "File(2):" << rd->d_name << std::endl;
-        //std::cout << "File: " << rd->d_name << "| ["<< new_path << "]" << std::endl;
-
+        mut.lock();
         file_paths.push_back(new_path);
+        mut.unlock();
         break;
 
       case DT_DIR:
         if ((strcmp(rd->d_name, ".") != 0) && (strcmp(rd->d_name, "..") != 0)){
-           //std::cout << "Directory(1): " << path << std::endl;
-          if (current_path[current_path.size() - 1] == '/'){
+          if (current_path[current_path.size() - 1] == '/')
             new_path = current_path + rd->d_name;
-            //std::cout << "I join new directory\n";
-          }
           else
-          {
             new_path = current_path + "/" + rd->d_name;
-            //std::cout << "I am here\n";
-          }
-            
-  
-          //std::cout << "Directory(2): " << rd->d_name << std::endl;
+
           make_queue(new_path);
         }
-
         break;
+      
       default:
         break;
     }
@@ -73,7 +61,9 @@ int psearch::for_cur_dir_make_queue(void) {
       else 
         new_path = path + "/" + rd->d_name;
 
+      mut.lock();
       file_paths.push_back(new_path);
+      mut.unlock();
     }
   }
 
@@ -92,37 +82,38 @@ void psearch::print(void){
   std::cout << "Queue:" << std::endl;
 
   for (int i = 0; i < file_paths.size(); i++)
-    std::cout << i << " " << file_paths[i] << "--> " << file_names[i] << std::endl;
-  
+     std::cout << i << " " << file_paths[i] << "--> " << file_names[i] << std::endl;
 }
 
 void psearch::search(void){
+  bool exit = false;
 
   while(true){
+    
+    //std::cerr << "I came to search\n";    
+    
     mut.lock();
     std::string current_path;
     size_t current_queue_position;
     
     if (queue_position < file_paths.size()){
+      //std::cerr << "I find file to find text in it\n";
       current_path = file_paths[queue_position];
       current_queue_position = queue_position;
       queue_position++;
-      mut.unlock();
     }
-    else{
-      mut.unlock();
-      return;
-    }
+    else if (finish)
+      exit = true;
 
+    mut.unlock();
     std::ifstream input(current_path);
-    //std::cerr << "Current path: " << current_path << "\n";
+    
     if (input){
       std::string line;
       size_t i = 0;
-
       while(getline(input, line)){
-        //std::cerr << "Current path_line: " << line << "\n";
-        if (row_check(current_path)){
+    
+        if (row_check(line)){
           std::cout << file_names[current_queue_position] << " " << i << " " << line << std::endl;
           is_printed = true;
         }
@@ -130,6 +121,11 @@ void psearch::search(void){
       }
       input.close();
     }
+    else
+      usleep(30+30+30);
+    
+    if (exit)
+      return;
   }
 }
 
@@ -160,6 +156,9 @@ int psearch::find(int argc, char** argv){
 
   make_kmp();
 
+  for (int i = 0; i < num_of_threads; i++)
+    threads.emplace_back(std::thread(&psearch::search, this));
+
   if (flag_current_dir){
     //std::cout << "FIRST\n";
     for_cur_dir_make_queue();
@@ -169,10 +168,10 @@ int psearch::find(int argc, char** argv){
     make_queue(path);
   }
     
-  print();
-
-  for (int i = 0; i < num_of_threads; i++)
-    threads.emplace_back(std::thread(&psearch::search, this));
+  mut.lock();
+  finish = true;
+  mut.unlock();
+  //print();
 
   for (int i = 0; i < num_of_threads; i++)
     threads[i].join();

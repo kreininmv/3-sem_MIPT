@@ -34,12 +34,13 @@ private:
   void make_kmp(void);
   void prefix_function(void);
   bool row_check(const std::string& row);
-
+  
   //Thread search
   size_t num_of_threads = 1;
   std::mutex mut;
   std::vector<std::thread> threads;
   size_t queue_position = 0;
+  bool finish = false;
   void search(void);
 
   void print(void);
